@@ -1,19 +1,56 @@
 "use client"
 
 import { useEffect, useRef, useState, useMemo } from "react"
-import { Paperclip, Send, MoreVertical, Loader2 } from "lucide-react"
+import { Paperclip, Send, MoreVertical, Loader2, Smile, X } from "lucide-react" // Added X for close button
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/toast-provider"
 import type { Message, Conversation } from "@/hooks/use-chat"
 
+// Define a type for selected file if needed for better type safety
+type SelectedFile = File | null;
+
 interface ChatWindowProps {
   conversation: Conversation | null
   messages: Message[]
   loading: boolean
-  onSendMessage: (text: string) => Promise<void>
+  onSendMessage: (text: string, file?: SelectedFile) => Promise<void>
   isLoadingMessage?: boolean
 }
+
+// --- EMOJI PICKER PLACEHOLDER COMPONENT (For demonstration) ---
+// In a real app, this would be replaced by a robust library component.
+const EmojiPickerPlaceholder = ({ onEmojiSelect, onClose }: { onEmojiSelect: (emoji: string) => void, onClose: () => void }) => {
+    const commonEmojis = ["😀", "😂", "🥰", "👍", "🙏", "🚀", "💡", "🥳"];
+
+    return (
+        <div className="absolute bottom-16 left-4 bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-20">
+            <div className="flex justify-between items-center mb-2">
+                <h4 className="text-sm font-semibold text-gray-700">Select Emoji</h4>
+                <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-100">
+                    <X className="w-4 h-4 text-gray-500" />
+                </button>
+            </div>
+            <div className="flex flex-wrap gap-2 max-w-xs">
+                {commonEmojis.map((emoji) => (
+                    <button
+                        key={emoji}
+                        onClick={() => onEmojiSelect(emoji)}
+                        className="text-2xl p-1 hover:bg-gray-100 rounded transition-colors duration-150"
+                        title={emoji}
+                    >
+                        {emoji}
+                    </button>
+                ))}
+                <span className="text-xs text-gray-400 mt-2 w-full text-center">
+                    (More emojis here in a real picker!)
+                </span>
+            </div>
+        </div>
+    );
+};
+// -----------------------------------------------------------------
+
 
 export function ChatWindow({
   conversation,
@@ -24,7 +61,10 @@ export function ChatWindow({
 }: ChatWindowProps) {
   const [messageText, setMessageText] = useState("")
   const [isSending, setIsSending] = useState(false)
+  const [selectedFile, setSelectedFile] = useState<SelectedFile>(null)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false) // <--- NEW STATE
   const scrollRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const { addToast } = useToast()
 
   const headerTitle = useMemo(
@@ -33,7 +73,6 @@ export function ChatWindow({
   )
 
   const customerName = useMemo(() => {
-    // assume first participant is the vendor/customer side
     return conversation?.participants?.[0]?.user?.name || "Vendor"
   }, [conversation])
 
@@ -50,13 +89,49 @@ export function ChatWindow({
       minute: "2-digit",
     })
 
+  // Handler for file selection (Unchanged)
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        addToast({
+          title: "File too large",
+          description: "Please select a file smaller than 5MB.",
+          type: "error",
+        })
+        e.target.value = ""
+        setSelectedFile(null)
+        return
+      }
+      setSelectedFile(file)
+    }
+  }
+  
+  // EMOJI: Handler to select an emoji
+  const handleEmojiClick = (emoji: string) => {
+    setMessageText(prev => prev + emoji)
+    setShowEmojiPicker(false) // Close the picker after selection
+  }
+
+  // EMOJI: Handler to toggle the picker visibility
+  const handleToggleEmojiPicker = () => {
+    setShowEmojiPicker(prev => !prev)
+  }
+
   const handleSendMessage = async () => {
-    if (!messageText.trim() || !conversation) return
+    if (!messageText.trim() && !selectedFile) return
+    if (!conversation) return
 
     try {
       setIsSending(true)
-      await onSendMessage(messageText.trim())
+      await onSendMessage(messageText.trim(), selectedFile) 
+      
       setMessageText("")
+      setSelectedFile(null) 
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
+      }
+
     } catch (error) {
       addToast({
         title: "Failed to send message",
@@ -84,7 +159,8 @@ export function ChatWindow({
 
   return (
     <div className="flex-1 flex flex-col bg-white">
-      {/* Header */}
+      {/* Header (Omitted for brevity) */}
+      {/* ... */}
       <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
         <div>
           <h3 className="text-sm font-semibold text-gray-900">{headerTitle}</h3>
@@ -101,116 +177,160 @@ export function ChatWindow({
         </div>
       </div>
 
-      {/* Messages area */}
+
+      {/* Messages area (Omitted for brevity) */}
+      {/* ... */}
       <div
         ref={scrollRef}
         className="flex-1 bg-[#E8F2FF] px-8 py-6 overflow-y-auto space-y-6"
       >
         {loading && messages.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />
-          </div>
+            <div className="flex items-center justify-center h-full">
+                <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />
+            </div>
         ) : messages.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-gray-500">
-            No messages yet. Start the conversation!
-          </div>
+            <div className="flex items-center justify-center h-full text-gray-500">
+                No messages yet. Start the conversation!
+            </div>
         ) : (
-          messages.map((msg) => {
-            // VENDOR = you (right, blue bubble), USER = customer (left, white bubble)
-            const isVendor = msg.sender.role === "VENDOR"
-
-            const avatar = (
-              <div className="flex-shrink-0">
-                {msg.sender.profileImage ? (
-                  <img
-                    src={msg.sender.profileImage}
-                    alt={msg.sender.name}
-                    className="w-8 h-8 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-xs font-semibold text-gray-700">
-                    {msg.sender.name?.charAt(0).toUpperCase() ?? "U"}
-                  </div>
-                )}
-              </div>
-            )
-
-            return (
-              <div
-                key={msg._id}
-                className={`flex items-end gap-3 ${
-                  isVendor ? "justify-end" : "justify-start"
-                }`}
-              >
-                {!isVendor && avatar}
-
-                <div
-                  className={`max-w-md rounded-2xl px-4 py-3 shadow-sm ${
-                    isVendor
-                      ? "bg-[#1976F9] text-white"
-                      : "bg-white text-gray-900"
-                  }`}
-                >
-                  <p className="text-sm leading-relaxed whitespace-pre-line">
-                    {msg.text}
-                  </p>
-
-                  {msg.files && msg.files.length > 0 && (
-                    <div className="mt-2 space-y-1">
-                      {msg.files.map((file, idx) => (
-                        <a
-                          key={idx}
-                          href={file.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={`block text-xs underline ${
-                            isVendor ? "text-blue-100" : "text-blue-600"
-                          }`}
-                        >
-                          {file.fileType === "image" ? "📷 Image" : "📎 File"}
-                        </a>
-                      ))}
+            messages.map((msg) => {
+                // ... message map logic
+                const isVendor = msg.sender.role === "VENDOR"
+                const avatar = (
+                    <div className="flex-shrink-0">
+                        {msg.sender.profileImage ? (
+                            <img
+                                src={msg.sender.profileImage}
+                                alt={msg.sender.name}
+                                className="w-8 h-8 rounded-full object-cover"
+                            />
+                        ) : (
+                            <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-xs font-semibold text-gray-700">
+                                {msg.sender.name?.charAt(0).toUpperCase() ?? "U"}
+                            </div>
+                        )}
                     </div>
-                  )}
+                )
 
-                  <p
-                    className={`mt-2 text-[11px] tracking-wide text-right ${
-                      isVendor ? "text-blue-100" : "text-gray-400"
-                    }`}
-                  >
-                    {formatTime(msg.createdAt)}
-                  </p>
-                </div>
+                return (
+                    <div
+                        key={msg._id}
+                        className={`flex items-end gap-3 ${isVendor ? "justify-end" : "justify-start"}`}
+                    >
+                        {!isVendor && avatar}
 
-                {isVendor && avatar}
-              </div>
-            )
-          })
+                        <div
+                            className={`max-w-md rounded-2xl px-4 py-3 shadow-sm ${
+                                isVendor ? "bg-[#1976F9] text-white" : "bg-white text-gray-900"
+                            }`}
+                        >
+                            <p className="text-sm leading-relaxed whitespace-pre-line">
+                                {msg.text}
+                            </p>
+
+                            {msg.files && msg.files.length > 0 && (
+                                <div className="mt-2 space-y-1">
+                                    {msg.files.map((file, idx) => (
+                                        <a
+                                            key={idx}
+                                            href={file.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className={`block text-xs underline ${
+                                                isVendor ? "text-blue-100" : "text-blue-600"
+                                            }`}
+                                        >
+                                            {file.fileType === "image" ? "📷 Image" : "📎 File"}
+                                        </a>
+                                    ))}
+                                </div>
+                            )}
+
+                            <p
+                                className={`mt-2 text-[11px] tracking-wide text-right ${
+                                    isVendor ? "text-blue-100" : "text-gray-400"
+                                }`}
+                            >
+                                {formatTime(msg.createdAt)}
+                            </p>
+                        </div>
+
+                        {isVendor && avatar}
+                    </div>
+                )
+            })
         )}
 
         {isLoadingMessage && (
-          <div className="flex justify-start">
-            <div className="bg-white px-4 py-2 rounded-2xl shadow-sm">
-              <div className="flex gap-1">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100" />
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200" />
-              </div>
+            <div className="flex justify-start">
+                <div className="bg-white px-4 py-2 rounded-2xl shadow-sm">
+                    <div className="flex gap-1">
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100" />
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200" />
+                    </div>
+                </div>
             </div>
-          </div>
         )}
       </div>
 
-      {/* Input */}
-      <div className="px-6 py-4 border-t border-gray-200 bg-white">
+      {/* Input section with File and Emoji support */}
+      <div className="px-6 py-4 border-t border-gray-200 bg-white relative"> {/* Added relative for picker positioning */}
+        {/* Conditional Emoji Picker Renderer */}
+        {showEmojiPicker && (
+            <EmojiPickerPlaceholder 
+                onEmojiSelect={handleEmojiClick}
+                onClose={() => setShowEmojiPicker(false)}
+            />
+        )}
+
+        {/* Selected File Preview (Unchanged) */}
+        {selectedFile && (
+            <div className="mb-2 flex items-center gap-2 text-xs text-gray-600">
+                <Paperclip className="w-3 h-3"/>
+                <span>**Attached:** {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)</span>
+                <button 
+                    onClick={() => {
+                        setSelectedFile(null); 
+                        if (fileInputRef.current) fileInputRef.current.value = "";
+                    }}
+                    className="ml-2 text-red-500 hover:text-red-700 font-bold"
+                >
+                    &times;
+                </button>
+            </div>
+        )}
+        
         <div className="flex items-center gap-3 rounded-full bg-gray-100 px-4 py-2">
+          
+          {/* 📎 File/Image Upload Button (Unchanged) */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            disabled={isSending}
+            className="hidden"
+            accept="image/*,application/pdf,.doc,.docx"
+          />
           <button
             type="button"
             className="flex-shrink-0 p-1 hover:opacity-80"
-            // Hook this up to a file input when you add uploads
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isSending}
           >
             <Paperclip className="w-4 h-4 text-gray-500" />
           </button>
+
+          {/* 😃 Emoji Picker Toggler */}
+          <button
+            type="button"
+            className="flex-shrink-0 p-1 hover:opacity-80"
+            onClick={handleToggleEmojiPicker} // <--- Toggles the state
+            disabled={isSending}
+          >
+            <Smile className="w-4 h-4 text-gray-500" />
+          </button>
+
 
           <Input
             placeholder="Type your message here"
@@ -224,7 +344,7 @@ export function ChatWindow({
           <Button
             type="button"
             onClick={handleSendMessage}
-            disabled={isSending || !messageText.trim()}
+            disabled={isSending || (!messageText.trim() && !selectedFile)} 
             className="flex-shrink-0 rounded-full px-6 bg-[#1976F9] hover:bg-[#165fd0]"
           >
             {isSending ? (
