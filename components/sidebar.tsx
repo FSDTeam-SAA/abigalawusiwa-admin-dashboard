@@ -33,7 +33,7 @@ const menuItems = [
   // { icon: Users, label: "Customer", href: "/dashboard/customers" },
   { icon: Users, label: "Vendors", href: "/dashboard/vendors" },
   // { icon: Gift, label: "Coupons", href: "/dashboard/coupons" },
-  { icon: TrendingUp, label: "Earnings", href: "/dashboard/earnings" },
+  // { icon: TrendingUp, label: "Earnings", href: "/dashboard/earnings" },
   // { icon: Users2, label: "Manage Staff", href: "/dashboard/staff" },
   { icon: Percent, label: "Commission", href: "/dashboard/commission" },
   { icon: MessageSquare, label: "Messages", href: "/dashboard/messages" },

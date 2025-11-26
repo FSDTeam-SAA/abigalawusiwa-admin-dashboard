@@ -54,7 +54,7 @@ export function ChatSidebar({
           totalOrders: 0, // placeholder until backend sends real values
           moneySpent: 0,  // placeholder until backend sends real values
           status: req.status,
-          storeId: req._id, // vendor/store ID used for chat
+          storeId: req.store, // vendor/store ID used for chat
         }))
 
       setCustomers(approvedCustomers)
