@@ -5,6 +5,34 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3001";
 
 let apiInstance: AxiosInstance;
 
+export type NotificationStatus = "read" | "unread";
+
+export type Notification = {
+  _id: string;
+  recipient: string;
+  title: string;
+  message: string;
+  type?: string;
+  entityType?: string;
+  entityId?: string;
+  data?: Record<string, any>;
+  status: NotificationStatus;
+  sentAt: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type NotificationsResponse = {
+  notifications: Notification[];
+  pagination?: {
+    currentPage: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+    hasNextPage: boolean;
+  };
+};
+
 export const initializeApi = () => {
   apiInstance = axios.create({
     baseURL: BASE_URL,
@@ -94,7 +122,6 @@ export const categoryApi = {
       headers: { "Content-Type": "multipart/form-data" },
     }),
 };
-
 
 // 🧾 ORDER APIs
 export const orderApi = {
@@ -208,4 +235,16 @@ export const chatApi = {
 
   markAsRead: (conversationIds: string[]) =>
     getApi().patch("/chat/conversations/read", { conversationIds }),
+};
+
+export const notificationApi = {
+  // GET /v1/notifications
+  getMyNotifications: () => getApi().get("/notifications"),
+
+  // PATCH /v1/notifications/mark-all
+  markAllRead: () => getApi().patch("/notifications/mark-all"),
+
+  // PATCH /v1/notifications/:id/status
+  markStatus: (id: string, status: NotificationStatus) =>
+    getApi().patch(`/notifications/${id}/status`, { status }),
 };
