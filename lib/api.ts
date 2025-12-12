@@ -237,6 +237,20 @@ export const chatApi = {
     getApi().patch("/chat/conversations/read", { conversationIds }),
 };
 
+
+export const commissionApi = {
+  // GET /commissions?page=&limit=
+  getAll: (page = 1, limit = 10) =>
+    getApi().get(`/commissions?page=${page}&limit=${limit}`),
+}
+
+export const dashboardApi = {
+  getOverview: () => getApi().get("/admin/dashboard/overview"),
+  getOrderAnalytics: () => getApi().get("/admin/dashboard/analytics/orders"),
+}
+
+
+
 export const notificationApi = {
   // GET /v1/notifications
   getMyNotifications: () => getApi().get("/notifications"),
@@ -248,3 +262,6 @@ export const notificationApi = {
   markStatus: (id: string, status: NotificationStatus) =>
     getApi().patch(`/notifications/${id}/status`, { status }),
 };
+
+
+
