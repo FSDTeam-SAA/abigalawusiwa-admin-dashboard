@@ -1,4 +1,5 @@
 import axios, { AxiosInstance } from "axios";
+import { verify } from "crypto";
 import { getSession } from "next-auth/react";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3001";
@@ -110,6 +111,8 @@ export const productApi = {
   // ✅ NEW: PUT /product/:id/status
   updateStatus: (id: string, status: string) =>
     getApi().put(`/product/${id}/status`, { status }),
+  verify: (id: string, isVerified: boolean) =>
+    getApi().put(`/product/${id}/verify`, { isVerified }),
 };
 
 // 📦 CATEGORY APIs
